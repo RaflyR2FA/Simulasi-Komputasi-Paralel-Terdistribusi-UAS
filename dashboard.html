@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jakarta Smart City — Command Center</title>
+    <meta name="description" content="Real-time monitoring dashboard for Jakarta Smart City distributed system prototype. Monitor edge nodes, vector clocks, sensor data, and citizen reports.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* ===== RESET & BASE ===== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-card: rgba(15, 23, 42, 0.8);
+            --border-card: rgba(255,255,255,0.08);
+            --green: #00ff88;
+            --cyan: #00d4ff;
+            --amber: #ffaa00;
+            --red: #ff4444;
+            --purple: #a855f7;
+            --text-primary: #f1f5f9;
+            --text-secondary: rgba(255,255,255,0.5);
+            --radius: 16px;
+            --transition: 0.3s ease;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Subtle background pattern */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(0, 212, 255, 0.03) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.03) 0%, transparent 60%),
+                radial-gradient(ellipse at 50% 80%, rgba(0, 255, 136, 0.02) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.8); opacity: 0; }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(0, 212, 255, 0.1); }
+            50% { box-shadow: 0 0 30px rgba(0, 212, 255, 0.2); }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease forwards;
+        }
+
+        /* ===== LAYOUT ===== */
+        .dashboard {
+            position: relative;
+            z-index: 1;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 0 24px 40px;
+        }
+
+        /* ===== GLASS CARD ===== */
+        .glass-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-card);
+            border-radius: var(--radius);
+            transition: all var(--transition);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.02) inset;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(255,255,255,0.12);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.04) inset;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 24px;
+            background: rgba(10, 14, 23, 0.9);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--cyan), var(--purple));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 900;
+            color: white;
+            box-shadow: 0 4px 16px rgba(0, 212, 255, 0.3);
+            flex-shrink: 0;
+        }
+
+        .header-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-title p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .live-clock {
+            font-size: 28px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 1px;
+            color: var(--text-primary);
+        }
+
+        .live-clock .seconds {
+            color: var(--cyan);
+        }
+
+        .overall-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all var(--transition);
+        }
+
+        .overall-status.online {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            color: var(--green);
+        }
+
+        .overall-status.degraded {
+            background: rgba(255, 170, 0, 0.1);
+            border: 1px solid rgba(255, 170, 0, 0.3);
+            color: var(--amber);
+        }
+
+        .overall-status.offline {
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+            color: var(--red);
+        }
+
+        .overall-status .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            position: relative;
+        }
+
+        .overall-status.online .status-dot::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 1.5s ease-out infinite;
+        }
+
+        /* ===== CONNECTION ERROR BANNER ===== */
+        .connection-error {
+            display: none;
+            padding: 12px 24px;
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+            border-radius: 12px;
+            color: var(--red);
+            font-size: 13px;
+            font-weight: 500;
+            text-align: center;
+            margin-bottom: 20px;
+            animation: slideDown 0.3s ease;
+        }
+
+        .connection-error.visible {
+            display: block;
+        }
+
+        /* ===== STAT CARDS ROW ===== */
+        .stat-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            border-radius: var(--radius) var(--radius) 0 0;
+        }
+
+        .stat-card:nth-child(1)::before { background: linear-gradient(90deg, var(--cyan), rgba(0,212,255,0.3)); }
+        .stat-card:nth-child(2)::before { background: linear-gradient(90deg, var(--amber), rgba(255,170,0,0.3)); }
+        .stat-card:nth-child(3)::before { background: linear-gradient(90deg, var(--purple), rgba(168,85,247,0.3)); }
+        .stat-card:nth-child(4)::before { background: linear-gradient(90deg, var(--green), rgba(0,255,136,0.3)); }
+
+        .stat-card .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+
+        .stat-card:nth-child(1) .stat-icon { background: rgba(0,212,255,0.1); color: var(--cyan); }
+        .stat-card:nth-child(2) .stat-icon { background: rgba(255,170,0,0.1); color: var(--amber); }
+        .stat-card:nth-child(3) .stat-icon { background: rgba(168,85,247,0.1); color: var(--purple); }
+        .stat-card:nth-child(4) .stat-icon { background: rgba(0,255,136,0.1); color: var(--green); }
+
+        .stat-card .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .stat-card .stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1.1;
+        }
+
+        .stat-card:nth-child(1) .stat-value { color: var(--cyan); }
+        .stat-card:nth-child(2) .stat-value { color: var(--amber); }
+        .stat-card:nth-child(3) .stat-value { color: var(--purple); }
+        .stat-card:nth-child(4) .stat-value { color: var(--green); }
+
+        .stat-card .stat-sub {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* ===== MAP + CHART ROW ===== */
+        .map-chart-row {
+            display: grid;
+            grid-template-columns: 2fr 3fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        /* Jakarta Map */
+        .map-container {
+            padding: 24px;
+            position: relative;
+        }
+
+        .map-container .section-title {
+            margin-bottom: 16px;
+        }
+
+        .map-area {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1.2;
+            border-radius: 12px;
+            overflow: hidden;
+            background:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 30px 30px;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+
+        /* SVG connection lines */
+        .map-lines {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .map-lines line {
+            stroke: rgba(255,255,255,0.08);
+            stroke-width: 1;
+            stroke-dasharray: 6, 4;
+        }
+
+        .map-node {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            z-index: 2;
+        }
+
+        .map-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            position: relative;
+            transition: background var(--transition);
+        }
+
+        .map-dot.online {
+            background: var(--green);
+            box-shadow: 0 0 12px rgba(0, 255, 136, 0.5), 0 0 24px rgba(0, 255, 136, 0.2);
+        }
+
+        .map-dot.offline {
+            background: var(--red);
+            box-shadow: 0 0 12px rgba(255, 68, 68, 0.5);
+        }
+
+        .map-dot.online::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s ease-out infinite;
+        }
+
+        .map-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+        }
+
+        /* Throughput Chart */
+        .chart-container {
+            padding: 24px;
+        }
+
+        .chart-container .section-title {
+            margin-bottom: 16px;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 280px;
+        }
+
+        /* ===== SECTION TITLE ===== */
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .section-title .title-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+        }
+
+        .section-title .title-icon.cyan { background: rgba(0,212,255,0.1); color: var(--cyan); }
+        .section-title .title-icon.amber { background: rgba(255,170,0,0.1); color: var(--amber); }
+        .section-title .title-icon.purple { background: rgba(168,85,247,0.1); color: var(--purple); }
+        .section-title .title-icon.green { background: rgba(0,255,136,0.1); color: var(--green); }
+        .section-title .title-icon.red { background: rgba(255,68,68,0.1); color: var(--red); }
+
+        /* ===== NODE STATUS CARDS ===== */
+        .node-cards-section {
+            margin-bottom: 24px;
+        }
+
+        .node-cards-section > .section-title {
+            margin-bottom: 16px;
+        }
+
+        .node-cards {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+        }
+
+        .node-card {
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .node-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .node-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .node-card-name {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 100px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge.online {
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--green);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+
+        .status-badge.offline {
+            background: rgba(255, 68, 68, 0.1);
+            color: var(--red);
+            border: 1px solid rgba(255, 68, 68, 0.2);
+        }
+
+        .status-badge .badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            position: relative;
+        }
+
+        .status-badge.online .badge-dot::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 1.5s ease-out infinite;
+        }
+
+        .node-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .node-meta-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .node-meta-item .meta-label {
+            color: var(--text-secondary);
+        }
+
+        .node-meta-item .meta-value {
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .vc-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .vc-pill {
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 600;
+            background: rgba(168, 85, 247, 0.1);
+            color: var(--purple);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ===== VC MATRIX + ALERTS ROW ===== */
+        .vc-alerts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .vc-matrix-container, .alerts-container {
+            padding: 24px;
+        }
+
+        /* VC Matrix Table */
+        .vc-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 16px;
+        }
+
+        .vc-table th, .vc-table td {
+            padding: 10px 12px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .vc-table th {
+            font-weight: 600;
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            background: rgba(255,255,255,0.02);
+        }
+
+        .vc-table th:first-child, .vc-table td:first-child {
+            text-align: left;
+            font-weight: 600;
+            color: var(--cyan);
+        }
+
+        .vc-table td {
+            font-variant-numeric: tabular-nums;
+            color: var(--text-primary);
+        }
+
+        .vc-table tbody tr {
+            transition: background var(--transition);
+        }
+
+        .vc-table tbody tr:hover {
+            background: rgba(255,255,255,0.03);
+        }
+
+        .vc-cell {
+            display: inline-block;
+            min-width: 32px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: rgba(168, 85, 247, 0.1);
+            color: var(--purple);
+            font-weight: 600;
+        }
+
+        /* Alerts Panel */
+        .alerts-list {
+            max-height: 320px;
+            overflow-y: auto;
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .alert-entry {
+            padding: 12px 16px;
+            border-radius: 10px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 12px;
+            animation: fadeInUp 0.3s ease;
+            border-left: 3px solid;
+        }
+
+        .alert-entry.WARNING {
+            background: rgba(255, 170, 0, 0.06);
+            border-left-color: var(--amber);
+        }
+
+        .alert-entry.INFO {
+            background: rgba(0, 212, 255, 0.06);
+            border-left-color: var(--cyan);
+        }
+
+        .alert-entry.ERROR {
+            background: rgba(255, 68, 68, 0.06);
+            border-left-color: var(--red);
+        }
+
+        .alert-level {
+            font-weight: 700;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .alert-entry.WARNING .alert-level {
+            background: rgba(255,170,0,0.15);
+            color: var(--amber);
+        }
+
+        .alert-entry.INFO .alert-level {
+            background: rgba(0,212,255,0.15);
+            color: var(--cyan);
+        }
+
+        .alert-entry.ERROR .alert-level {
+            background: rgba(255,68,68,0.15);
+            color: var(--red);
+        }
+
+        .alert-message {
+            color: var(--text-primary);
+            flex: 1;
+            line-height: 1.4;
+        }
+
+        .alert-time {
+            color: var(--text-secondary);
+            font-size: 11px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ===== RECENT DATA TABLE ===== */
+        .recent-table-container {
+            padding: 24px;
+        }
+
+        .recent-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 16px;
+        }
+
+        .recent-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            background: rgba(255,255,255,0.02);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            position: sticky;
+            top: 0;
+        }
+
+        .recent-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: var(--text-primary);
+            vertical-align: middle;
+        }
+
+        .recent-table tbody tr {
+            transition: background var(--transition);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .recent-table tbody tr:nth-child(even) {
+            background: rgba(255,255,255,0.015);
+        }
+
+        .recent-table tbody tr:hover {
+            background: rgba(0, 212, 255, 0.04);
+        }
+
+        .type-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .type-badge.laporan {
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--cyan);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .type-badge.sensor {
+            background: rgba(255, 170, 0, 0.1);
+            color: var(--amber);
+            border: 1px solid rgba(255, 170, 0, 0.2);
+        }
+
+        .region-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 600;
+            background: rgba(168, 85, 247, 0.1);
+            color: var(--purple);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+        }
+
+        .desc-cell {
+            max-width: 280px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .timestamp-cell {
+            font-variant-numeric: tabular-nums;
+            color: var(--text-secondary);
+            font-size: 11px;
+        }
+
+        /* ===== PLACEHOLDER ===== */
+        .placeholder-text {
+            color: var(--text-secondary);
+            font-size: 13px;
+            text-align: center;
+            padding: 40px 20px;
+            font-style: italic;
+        }
+
+        .placeholder-text::before {
+            content: '◎';
+            display: block;
+            font-size: 28px;
+            margin-bottom: 8px;
+            opacity: 0.3;
+            font-style: normal;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1200px) {
+            .node-cards {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .map-chart-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .stat-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .node-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .vc-alerts-row {
+                grid-template-columns: 1fr;
+            }
+            .header {
+                padding: 12px 16px;
+            }
+            .live-clock {
+                font-size: 20px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .stat-cards {
+                grid-template-columns: 1fr;
+            }
+            .node-cards {
+                grid-template-columns: 1fr;
+            }
+            .dashboard {
+                padding: 0 12px 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+    <div class="header-left">
+        <div class="logo-icon">JSC</div>
+        <div class="header-title">
+            <h1>Jakarta Smart City — Command Center</h1>
+            <p>Dashboard Admin Kota • Monitoring Real-time Sistem Terdistribusi</p>
+        </div>
+    </div>
+    <div class="header-right">
+        <div id="overallStatus" class="overall-status online">
+            <span class="status-dot"></span>
+            <span id="overallStatusText">SYSTEM ONLINE</span>
+        </div>
+        <div id="liveClock" class="live-clock">--:--:--</div>
+    </div>
+</header>
+
+<main class="dashboard">
+
+    <!-- CONNECTION ERROR BANNER -->
+    <div id="connectionError" class="connection-error">
+        ⚠ Koneksi ke server terputus. Dashboard akan mencoba menghubungkan kembali secara otomatis...
+    </div>
+
+    <!-- STAT CARDS -->
+    <section class="stat-cards">
+        <div class="stat-card glass-card">
+            <div class="stat-icon">📋</div>
+            <div class="stat-label">Total Laporan Warga</div>
+            <div id="statLaporan" class="stat-value">0</div>
+            <div class="stat-sub">Citizen Reports</div>
+        </div>
+        <div class="stat-card glass-card">
+            <div class="stat-icon">📡</div>
+            <div class="stat-label">Total Log Sensor</div>
+            <div id="statSensor" class="stat-value">0</div>
+            <div class="stat-sub">Sensor Readings</div>
+        </div>
+        <div class="stat-card glass-card">
+            <div class="stat-icon">🔄</div>
+            <div class="stat-label">Total Sinkronisasi</div>
+            <div id="statSync" class="stat-value">0</div>
+            <div class="stat-sub">Sync Operations</div>
+        </div>
+        <div class="stat-card glass-card">
+            <div class="stat-icon">⏱</div>
+            <div class="stat-label">Uptime Server</div>
+            <div id="statUptime" class="stat-value">00:00:00</div>
+            <div class="stat-sub">Waktu sejak server dimulai</div>
+        </div>
+    </section>
+
+    <!-- MAP + CHART ROW -->
+    <section class="map-chart-row">
+        <div class="map-container glass-card">
+            <div class="section-title">
+                <span class="title-icon green">🗺</span>
+                Peta Node Jakarta
+            </div>
+            <div class="map-area" id="jakartaMap">
+                <!-- SVG for connection lines -->
+                <svg class="map-lines" id="mapLines" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <!-- Jakpus to Jakut -->
+                    <line x1="50" y1="45" x2="50" y2="15" />
+                    <!-- Jakpus to Jakbar -->
+                    <line x1="50" y1="45" x2="20" y2="50" />
+                    <!-- Jakpus to Jaksel -->
+                    <line x1="50" y1="45" x2="50" y2="80" />
+                    <!-- Jakpus to Jaktim -->
+                    <line x1="50" y1="45" x2="80" y2="50" />
+                    <!-- Jakut to Jakbar -->
+                    <line x1="50" y1="15" x2="20" y2="50" />
+                    <!-- Jakut to Jaktim -->
+                    <line x1="50" y1="15" x2="80" y2="50" />
+                    <!-- Jakbar to Jaksel -->
+                    <line x1="20" y1="50" x2="50" y2="80" />
+                    <!-- Jaksel to Jaktim -->
+                    <line x1="50" y1="80" x2="80" y2="50" />
+                </svg>
+
+                <!-- Node dots -->
+                <div class="map-node" style="left:50%;top:45%;" data-node="Jakpus">
+                    <div class="map-dot online" id="mapDot-Jakpus"></div>
+                    <span class="map-label">Jakpus</span>
+                </div>
+                <div class="map-node" style="left:50%;top:15%;" data-node="Jakut">
+                    <div class="map-dot online" id="mapDot-Jakut"></div>
+                    <span class="map-label">Jakut</span>
+                </div>
+                <div class="map-node" style="left:20%;top:50%;" data-node="Jakbar">
+                    <div class="map-dot online" id="mapDot-Jakbar"></div>
+                    <span class="map-label">Jakbar</span>
+                </div>
+                <div class="map-node" style="left:50%;top:80%;" data-node="Jaksel">
+                    <div class="map-dot online" id="mapDot-Jaksel"></div>
+                    <span class="map-label">Jaksel</span>
+                </div>
+                <div class="map-node" style="left:80%;top:50%;" data-node="Jaktim">
+                    <div class="map-dot online" id="mapDot-Jaktim"></div>
+                    <span class="map-label">Jaktim</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-container glass-card">
+            <div class="section-title">
+                <span class="title-icon cyan">📈</span>
+                Throughput History
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="throughputChart"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- NODE STATUS CARDS -->
+    <section class="node-cards-section">
+        <div class="section-title" style="margin-bottom:16px;">
+            <span class="title-icon purple">🖥</span>
+            Status Edge Node
+        </div>
+        <div id="nodeCards" class="node-cards">
+            <div class="glass-card" style="grid-column: 1 / -1;">
+                <div class="placeholder-text">Menunggu data node...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- VC MATRIX + ALERTS -->
+    <section class="vc-alerts-row">
+        <div class="vc-matrix-container glass-card">
+            <div class="section-title">
+                <span class="title-icon purple">🕰</span>
+                Vector Clock Matrix
+            </div>
+            <div id="vcMatrix">
+                <div class="placeholder-text">Menunggu data vector clock...</div>
+            </div>
+        </div>
+
+        <div class="alerts-container glass-card">
+            <div class="section-title">
+                <span class="title-icon amber">🔔</span>
+                Alert Log
+            </div>
+            <div id="alertsList" class="alerts-list">
+                <div class="placeholder-text">Belum ada alert...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- RECENT DATA TABLE -->
+    <section class="recent-table-container glass-card">
+        <div class="section-title">
+            <span class="title-icon cyan">📊</span>
+            Data Terbaru
+        </div>
+        <div style="overflow-x:auto; margin-top:16px;">
+            <table class="recent-table" id="recentTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Tipe</th>
+                        <th>Wilayah</th>
+                        <th>Deskripsi / Status</th>
+                        <th>Timestamp</th>
+                        <th>Vector Clock</th>
+                    </tr>
+                </thead>
+                <tbody id="recentTableBody">
+                    <tr>
+                        <td colspan="6">
+                            <div class="placeholder-text">Menunggu data...</div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</main>
+
+<script>
+// ===== GLOBALS =====
+let throughputChart = null;
+let failCount = 0;
+const MAX_FAIL = 3;
+const ALL_NODES = ['Jakpus', 'Jakut', 'Jakbar', 'Jaksel', 'Jaktim'];
+
+// ===== LIVE CLOCK =====
+function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const s = String(now.getSeconds()).padStart(2, '0');
+    const el = document.getElementById('liveClock');
+    el.innerHTML = `${h}:${m}:<span class="seconds">${s}</span>`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ===== UPTIME FORMAT =====
+function formatUptime(seconds) {
+    if (!seconds && seconds !== 0) return '--:--:--';
+    const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+    const s = String(Math.floor(seconds % 60)).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+}
+
+// ===== RELATIVE TIME =====
+function relativeTime(isoStr) {
+    if (!isoStr) return '-';
+    try {
+        const then = new Date(isoStr);
+        const now = new Date();
+        const diff = Math.floor((now - then) / 1000);
+        if (diff < 0) return 'baru saja';
+        if (diff < 5) return 'baru saja';
+        if (diff < 60) return `${diff} detik lalu`;
+        if (diff < 3600) return `${Math.floor(diff / 60)} menit lalu`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`;
+        return `${Math.floor(diff / 86400)} hari lalu`;
+    } catch {
+        return '-';
+    }
+}
+
+// ===== FORMAT TIMESTAMP =====
+function formatTimestamp(isoStr) {
+    if (!isoStr) return '-';
+    try {
+        const d = new Date(isoStr);
+        return d.toLocaleString('id-ID', { hour12: false });
+    } catch {
+        return isoStr;
+    }
+}
+
+// ===== NUMBER ANIMATION =====
+function animateNumber(el, newVal) {
+    const current = parseInt(el.textContent.replace(/[^\d]/g, '')) || 0;
+    if (current === newVal) return;
+    el.textContent = newVal.toLocaleString('id-ID');
+    el.style.transform = 'scale(1.08)';
+    setTimeout(() => { el.style.transform = 'scale(1)'; }, 200);
+}
+
+// ===== UPDATE STAT CARDS =====
+function updateStatCards(stats, uptimeSeconds) {
+    if (stats) {
+        animateNumber(document.getElementById('statLaporan'), stats.total_laporan || 0);
+        animateNumber(document.getElementById('statSensor'), stats.total_sensor || 0);
+        animateNumber(document.getElementById('statSync'), stats.total_sync || 0);
+    }
+    document.getElementById('statUptime').textContent = formatUptime(uptimeSeconds);
+}
+
+// ===== UPDATE NODE MAP =====
+function updateNodeMap(registry) {
+    if (!registry) return;
+    ALL_NODES.forEach(name => {
+        const dot = document.getElementById(`mapDot-${name}`);
+        if (!dot) return;
+        const node = registry[name];
+        if (node && node.status === 'ONLINE') {
+            dot.className = 'map-dot online';
+        } else {
+            dot.className = 'map-dot offline';
+        }
+    });
+}
+
+// ===== UPDATE NODE CARDS =====
+function updateNodeCards(registry) {
+    if (!registry || Object.keys(registry).length === 0) return;
+
+    const container = document.getElementById('nodeCards');
+    let html = '';
+
+    ALL_NODES.forEach(name => {
+        const node = registry[name];
+        const isOnline = node && node.status === 'ONLINE';
+        const statusClass = isOnline ? 'online' : 'offline';
+        const statusText = isOnline ? 'ONLINE' : 'OFFLINE';
+        const lastSync = node ? relativeTime(node.last_sync) : '-';
+        const totalData = node ? (node.total_data || 0) : 0;
+        const totalSync = node ? (node.total_sync || 0) : 0;
+        const syncFailed = node ? (node.sync_gagal || 0) : 0;
+        const vc = (node && node.vector_clock) ? node.vector_clock : {};
+
+        let vcPills = '';
+        Object.entries(vc).forEach(([k, v]) => {
+            vcPills += `<span class="vc-pill">${k}: ${v}</span>`;
+        });
+        if (!vcPills) vcPills = '<span class="vc-pill" style="opacity:0.4">—</span>';
+
+        html += `
+        <div class="node-card glass-card fade-in-up">
+            <div class="node-card-header">
+                <span class="node-card-name">${name}</span>
+                <span class="status-badge ${statusClass}">
+                    <span class="badge-dot"></span>
+                    ${statusText}
+                </span>
+            </div>
+            <div class="node-meta">
+                <div class="node-meta-item">
+                    <span class="meta-label">Last Sync</span>
+                    <span class="meta-value">${lastSync}</span>
+                </div>
+                <div class="node-meta-item">
+                    <span class="meta-label">Total Data</span>
+                    <span class="meta-value">${totalData}</span>
+                </div>
+                <div class="node-meta-item">
+                    <span class="meta-label">Sync OK / Gagal</span>
+                    <span class="meta-value">${totalSync} / <span style="color:${syncFailed > 0 ? 'var(--red)' : 'var(--text-secondary)'}">${syncFailed}</span></span>
+                </div>
+            </div>
+            <div class="vc-pills">${vcPills}</div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+}
+
+// ===== UPDATE VECTOR CLOCK MATRIX =====
+function updateVectorClockMatrix(globalVC, registry) {
+    const container = document.getElementById('vcMatrix');
+
+    // Collect all known node IDs from global VC and registry
+    const allKeys = new Set();
+    if (globalVC) Object.keys(globalVC).forEach(k => allKeys.add(k));
+    if (registry) {
+        Object.keys(registry).forEach(nodeName => {
+            const vc = registry[nodeName]?.vector_clock;
+            if (vc) Object.keys(vc).forEach(k => allKeys.add(k));
+        });
+    }
+
+    const columns = Array.from(allKeys).sort();
+    if (columns.length === 0) {
+        container.innerHTML = '<div class="placeholder-text">Menunggu data vector clock...</div>';
+        return;
+    }
+
+    // Rows: each node + MainServer (global)
+    const rows = {};
+    if (registry) {
+        Object.entries(registry).forEach(([name, info]) => {
+            rows[name] = info.vector_clock || {};
+        });
+    }
+    if (globalVC) {
+        rows['Global (Main)'] = globalVC;
+    }
+
+    let html = '<table class="vc-table"><thead><tr><th>Node</th>';
+    columns.forEach(col => {
+        html += `<th>${col}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    Object.entries(rows).forEach(([rowName, vc]) => {
+        html += `<tr><td>${rowName}</td>`;
+        columns.forEach(col => {
+            const val = vc[col] !== undefined ? vc[col] : '-';
+            html += `<td><span class="vc-cell">${val}</span></td>`;
+        });
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+// ===== UPDATE ALERTS =====
+function updateAlerts(alerts) {
+    const container = document.getElementById('alertsList');
+    if (!alerts || alerts.length === 0) {
+        container.innerHTML = '<div class="placeholder-text">Belum ada alert...</div>';
+        return;
+    }
+
+    // Newest first, max 50
+    const sorted = [...alerts].reverse().slice(0, 50);
+    let html = '';
+    sorted.forEach(alert => {
+        const level = alert.level || 'INFO';
+        const time = alert.waktu ? formatTimestamp(alert.waktu) : '';
+        html += `
+        <div class="alert-entry ${level}">
+            <span class="alert-level">${level}</span>
+            <span class="alert-message">${alert.pesan || ''}</span>
+            <span class="alert-time">${time}</span>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+}
+
+// ===== UPDATE THROUGHPUT CHART =====
+function initChart() {
+    const ctx = document.getElementById('throughputChart').getContext('2d');
+
+    const cyanGradient = ctx.createLinearGradient(0, 0, 0, 280);
+    cyanGradient.addColorStop(0, 'rgba(0, 212, 255, 0.25)');
+    cyanGradient.addColorStop(1, 'rgba(0, 212, 255, 0.0)');
+
+    const amberGradient = ctx.createLinearGradient(0, 0, 0, 280);
+    amberGradient.addColorStop(0, 'rgba(255, 170, 0, 0.2)');
+    amberGradient.addColorStop(1, 'rgba(255, 170, 0, 0.0)');
+
+    throughputChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'Laporan Warga',
+                    data: [],
+                    borderColor: '#00d4ff',
+                    backgroundColor: cyanGradient,
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#00d4ff',
+                    pointBorderColor: 'transparent',
+                    pointHoverRadius: 6,
+                    pointHoverBackgroundColor: '#00d4ff',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 2
+                },
+                {
+                    label: 'Log Sensor',
+                    data: [],
+                    borderColor: '#ffaa00',
+                    backgroundColor: amberGradient,
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#ffaa00',
+                    pointBorderColor: 'transparent',
+                    pointHoverRadius: 6,
+                    pointHoverBackgroundColor: '#ffaa00',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    align: 'end',
+                    labels: {
+                        color: 'rgba(255,255,255,0.6)',
+                        font: { family: 'Inter', size: 11, weight: '500' },
+                        boxWidth: 12,
+                        boxHeight: 3,
+                        borderRadius: 2,
+                        useBorderRadius: true,
+                        padding: 16
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(10, 14, 23, 0.95)',
+                    titleColor: '#f1f5f9',
+                    bodyColor: 'rgba(255,255,255,0.8)',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1,
+                    padding: 12,
+                    cornerRadius: 10,
+                    titleFont: { family: 'Inter', size: 12, weight: '600' },
+                    bodyFont: { family: 'Inter', size: 11 },
+                    displayColors: true,
+                    boxWidth: 8,
+                    boxHeight: 8,
+                    boxPadding: 4
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+                    ticks: {
+                        color: 'rgba(255,255,255,0.35)',
+                        font: { family: 'Inter', size: 10 },
+                        maxRotation: 0,
+                        maxTicksLimit: 8
+                    },
+                    border: { display: false }
+                },
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+                    ticks: {
+                        color: 'rgba(255,255,255,0.35)',
+                        font: { family: 'Inter', size: 10 },
+                        padding: 8
+                    },
+                    border: { display: false },
+                    beginAtZero: true
+                }
+            },
+            animation: {
+                duration: 600,
+                easing: 'easeOutQuart'
+            }
+        }
+    });
+}
+
+function updateThroughputChart(history) {
+    if (!throughputChart || !history || history.length === 0) return;
+
+    // Keep last 20 data points
+    const data = history.slice(-20);
+    const labels = data.map(d => {
+        if (!d.waktu) return '';
+        try {
+            const t = new Date(d.waktu);
+            return t.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+        } catch {
+            return d.waktu;
+        }
+    });
+
+    throughputChart.data.labels = labels;
+    throughputChart.data.datasets[0].data = data.map(d => d.laporan || 0);
+    throughputChart.data.datasets[1].data = data.map(d => d.sensor || 0);
+    throughputChart.update('none');
+}
+
+// ===== UPDATE RECENT TABLE =====
+function updateRecentTable(data) {
+    const tbody = document.getElementById('recentTableBody');
+    if (!data || !data.recent || data.recent.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6"><div class="placeholder-text">Menunggu data...</div></td></tr>';
+        return;
+    }
+
+    let html = '';
+    data.recent.slice(0, 20).forEach((item, i) => {
+        const tipe = item.tipe || '-';
+        const isLaporan = tipe.includes('laporan');
+        const typeClass = isLaporan ? 'laporan' : 'sensor';
+        const typeLabel = isLaporan ? 'Laporan' : 'Sensor';
+        const lokasi = item.lokasi || item.wilayah || '-';
+        const desc = item.deskripsi || item.status || item.nilai || '-';
+        const ts = formatTimestamp(item.timestamp);
+        const vc = item.vector_clock ? JSON.stringify(item.vector_clock) : '-';
+
+        html += `
+        <tr>
+            <td style="color:var(--text-secondary);font-weight:600;">${i + 1}</td>
+            <td><span class="type-badge ${typeClass}">${typeLabel}</span></td>
+            <td><span class="region-badge">${lokasi}</span></td>
+            <td class="desc-cell" title="${desc}">${desc}</td>
+            <td class="timestamp-cell">${ts}</td>
+            <td><span class="vc-pill" style="font-size:10px;">${vc}</span></td>
+        </tr>`;
+    });
+
+    tbody.innerHTML = html;
+}
+
+// ===== UPDATE OVERALL STATUS =====
+function updateOverallStatus(registry) {
+    const el = document.getElementById('overallStatus');
+    const textEl = document.getElementById('overallStatusText');
+
+    if (!registry || Object.keys(registry).length === 0) {
+        el.className = 'overall-status offline';
+        textEl.textContent = 'NO DATA';
+        return;
+    }
+
+    const nodes = Object.values(registry);
+    const onlineCount = nodes.filter(n => n.status === 'ONLINE').length;
+    const total = nodes.length;
+
+    if (onlineCount === total) {
+        el.className = 'overall-status online';
+        textEl.textContent = `ALL NODES ONLINE (${total}/${total})`;
+    } else if (onlineCount > 0) {
+        el.className = 'overall-status degraded';
+        textEl.textContent = `DEGRADED (${onlineCount}/${total})`;
+    } else {
+        el.className = 'overall-status offline';
+        textEl.textContent = `ALL NODES OFFLINE (0/${total})`;
+    }
+}
+
+// ===== FETCH STATUS =====
+async function fetchStatus() {
+    try {
+        const res = await fetch('/api/status');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        failCount = 0;
+        document.getElementById('connectionError').classList.remove('visible');
+
+        updateStatCards(data.stats, data.uptime_seconds);
+        updateNodeMap(data.node_registry);
+        updateNodeCards(data.node_registry);
+        updateVectorClockMatrix(data.vector_clock_global, data.node_registry);
+        updateAlerts(data.alerts);
+        updateThroughputChart(data.throughput_history);
+        updateOverallStatus(data.node_registry);
+    } catch (e) {
+        failCount++;
+        if (failCount >= MAX_FAIL) {
+            document.getElementById('connectionError').classList.add('visible');
+        }
+    }
+}
+
+// ===== FETCH RECENT DATA =====
+async function fetchRecentData() {
+    try {
+        const res = await fetch('/api/db/recent');
+        if (!res.ok) return;
+        const data = await res.json();
+        updateRecentTable(data);
+    } catch (e) {
+        // silently retry
+    }
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+    initChart();
+    fetchStatus();
+    fetchRecentData();
+    setInterval(fetchStatus, 2000);
+    setInterval(fetchRecentData, 2000);
+});
+</script>
+
+</body>
+</html>

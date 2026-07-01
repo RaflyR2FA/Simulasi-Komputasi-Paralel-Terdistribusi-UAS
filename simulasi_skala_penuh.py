@@ -1,0 +1,127 @@
+"""
+simulasi_skala_penuh.py
+=======================
+Script untuk menjalankan demonstrasi Jakarta Smart City skala penuh.
+Menjalankan Main Server, Dashboard, dan 5 Edge Node sekaligus.
+Juga secara otomatis mengirimkan traffic data secara kontinu
+untuk keperluan demonstrasi visual pada Dashboard.
+
+Cara menjalankan:
+    python simulasi_skala_penuh.py
+"""
+
+import subprocess
+import sys
+import os
+import time
+import signal
+import io
+import random
+
+# Fix encoding untuk Windows terminal
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PYTHON = sys.executable
+
+nodes = [
+    {"region": "Jakpus", "port": 9001},
+    {"region": "Jakut",  "port": 9002},
+    {"region": "Jakbar", "port": 9003},
+    {"region": "Jaksel", "port": 9004},
+    {"region": "Jaktim", "port": 9005},
+]
+
+processes = []
+
+def cleanup(signum=None, frame=None):
+    print("\n[!] Menghentikan semua layanan...")
+    for p in processes:
+        if p.poll() is None:
+            try:
+                if sys.platform == 'win32':
+                    p.terminate()
+                else:
+                    os.kill(p.pid, signal.SIGTERM)
+                p.wait(timeout=3)
+            except Exception:
+                p.kill()
+    print("[✓] Semua layanan telah dihentikan.")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, cleanup)
+if sys.platform != 'win32':
+    signal.signal(signal.SIGTERM, cleanup)
+
+def main():
+    # Bersihkan file DB & status lama agar mulai dari nol
+    for f in ['db_laporan_warga.json', 'db_log_sensor.json', 'status.json']:
+        if os.path.exists(f):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+
+    print("=" * 64)
+    print("  SIMULASI SKALA PENUH JAKARTA SMART CITY (5 NODE)")
+    print("=" * 64)
+    
+    # 1. Start Main Server
+    print("[1/4] Menjalankan Main Server (Port 9000)...")
+    p_main = subprocess.Popen([PYTHON, os.path.join(BASE_DIR, 'main_server.py'), '--port', '9000'])
+    processes.append(p_main)
+    time.sleep(2)
+    
+    # 2. Start Dashboard
+    print("[2/4] Menjalankan Dashboard Server (Port 8080)...")
+    p_dash = subprocess.Popen([PYTHON, os.path.join(BASE_DIR, 'dashboard_server.py'), '--port', '8080'])
+    processes.append(p_dash)
+    time.sleep(1)
+    
+    # 3. Start 5 Edge Nodes
+    print("[3/4] Menjalankan 5 Edge Node Wilayah...")
+    for node in nodes:
+        print(f"      - Edge Node {node['region']} (Port {node['port']})")
+        p_edge = subprocess.Popen([
+            PYTHON, os.path.join(BASE_DIR, 'edge_node.py'), 
+            '--region', node['region'], 
+            '--port', str(node['port']),
+            '--main-port', '9000',
+            '--sync-interval', '3'  # Sync cepat 3 detik agar dashboard sangat reaktif
+        ])
+        processes.append(p_edge)
+    
+    time.sleep(3)
+    
+    print("\n[4/4] Mulai menghasilkan traffic data kontinu...")
+    print("=" * 64)
+    print("  SISTEM BERJALAN SKALA PENUH!")
+    print("  -> Buka browser: http://localhost:8080 untuk melihat Dashboard")
+    print("  -> Tekan Ctrl+C di terminal ini untuk menghentikan semua.")
+    print("=" * 64 + "\n")
+    
+    try:
+        # Loop untuk simulasi traffic kontinu
+        while True:
+            # Pilih 1-4 node random untuk dikirimi data
+            target_nodes = random.sample(nodes, k=random.randint(1, 4))
+            
+            for node in target_nodes:
+                jumlah_data = random.randint(5, 25)
+                # Jalankan client_simulator di background
+                subprocess.Popen([
+                    PYTHON, os.path.join(BASE_DIR, 'client_simulator.py'),
+                    '--region', node['region'],
+                    '--port', str(node['port']),
+                    '--jumlah', str(jumlah_data)
+                ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                
+            # Jeda 2 detik sebelum batch traffic berikutnya
+            time.sleep(2)
+            
+    except KeyboardInterrupt:
+        cleanup()
+
+if __name__ == "__main__":
+    main()
