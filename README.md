@@ -27,6 +27,17 @@ Pemrosesan Data Terpadu Jakarta Smart City — integrasi laporan warga
 - **Browser modern** — untuk dashboard (Chrome/Edge/Firefox)
 - **Koneksi internet** — hanya untuk memuat Chart.js CDN di dashboard
 
+## Alur Simulasi dan Pengujian Sistem
+
+Proyek ini dilengkapi dengan berbagai skenario simulasi dan pengujian untuk membuktikan efektivitas dari konsep sistem terdistribusi dan komputasi paralel yang diterapkan. Berikut adalah alurnya:
+
+1. **Simulasi Skala Penuh (`simulasi_skala_penuh.py`)**: Digunakan untuk mendemokan arsitektur secara keseluruhan (End-to-End). Skrip ini menghidupkan seluruh komponen mulai dari Main Server, API Gateway, 5 Edge Node untuk kelima wilayah Jakarta, hingga Dashboard, serta membombardir sistem dengan *traffic* laporan secara konstan.
+   - **Kegunaan:** Membuktikan bahwa sistem mampu berjalan terintegrasi dan menangani request berskala besar lintas wilayah secara real-time.
+2. **Pengujian Kinerja / Benchmark (`benchmark_kinerja.py`)**: Digunakan untuk membandingkan kecepatan pemrosesan data antara pendekatan tradisional (Sequential/Blocking) melawan pendekatan Asynchronous (Non-blocking).
+   - **Kegunaan:** Membuktikan pemenuhan **Poin 6 (Analisis Kinerja)** bahwa komputasi asinkron jauh lebih efisien untuk operasi I/O-bound.
+3. **Simulasi Toleransi Kesalahan (`simulasi_fault.py`)**: Skrip pengujian terisolasi yang mensimulasikan kegagalan pada jaringan atau server (Client crash, Server down, Node mati).
+   - **Kegunaan:** Membuktikan pemenuhan **Poin 7 (Tantangan Sistem)** bahwa sistem memiliki *fault tolerance* dan jaminan konsistensi (Vector Clock).
+
 ## Cara Menjalankan
 
 ### A. Demo Skala Penuh
@@ -47,48 +58,40 @@ Anda akan melihat dashboard command center yang menyala secara dinamis, dengan d
 Jika Anda ingin menjalankan komponen satu-per-satu secara manual, buka **6 terminal** terpisah dan jalankan dalam urutan berikut:
 
 **Terminal 1 — Main Server:**
-
 ```
 python main_server.py --port 9000
 ```
 
 **Terminal 2 — API Gateway:**
-
 ```
 python api_gateway.py --port 8000
 ```
 
 **Terminal 3 — Dashboard Server:**
-
 ```
 python dashboard_server.py --port 8080
 ```
-
 Buka browser → `http://localhost:8080`
 
 **Terminal 4 & 5 — Edge Node per wilayah:**
-
 ```
 python edge_node.py --region Jaksel --port 9001
 python edge_node.py --region Jakpus --port 9002
 ```
 
 **Terminal 6 — Simulasi client (kirim data dummy):**
-
 ```
 python client_simulator.py --port 8000 --region Jaksel --jumlah 50
 python client_simulator.py --port 8000 --region Jakpus --jumlah 50
 ```
-
 Tunggu 5 detik → lihat sync terjadi di terminal Edge Node + data muncul di dashboard.
 
 **Mode Chaos (simulasi client crash):**
-
 ```
 python client_simulator.py --port 8000 --region Jaksel --jumlah 50 --chaos
 ```
 
-### B. Benchmark Kinerja
+### C. Benchmark Kinerja
 
 Cukup jalankan satu perintah (tidak perlu server aktif):
 
@@ -98,13 +101,7 @@ python benchmark_kinerja.py --jumlah 1000
 python benchmark_kinerja.py --jumlah 10000
 ```
 
-Output berupa tabel perbandingan **Sequential vs Async** berisi:
-
-- **Execution Time** (detik)
-- **Throughput** (data/detik)
-- **Speedup** = T_sequential / T_async
-
-### C. Simulasi Fault Tolerance
+### D. Simulasi Fault Tolerance
 
 Cukup jalankan satu perintah (semua proses otomatis dikelola script):
 
@@ -113,7 +110,6 @@ python simulasi_fault.py
 ```
 
 Menjalankan 3 skenario otomatis:
-
 1. **Client crash** di tengah pengiriman → Edge Node tetap melayani
 2. **Main Server down** → data di-buffer → recovery otomatis saat server pulih
 3. **Edge Node offline** → Main Server deteksi via heartbeat monitoring
@@ -121,7 +117,6 @@ Menjalankan 3 skenario otomatis:
 ## Pemetaan ke Poin Tugas
 
 ### Asynchronous Programming
-
 **Proses:** Pengolahan data pengguna (laporan warga JAKI) + data sensor CCTV.
 
 | Fungsi             | File           | Penjelasan                                                               |
@@ -132,19 +127,16 @@ Menjalankan 3 skenario otomatis:
 ### Sistem Terdistribusi (2 implementasi)
 
 **5.1 Socket Programming (Client-Server):**
-
 - `api_gateway.py` → menerima request HTTP dari aplikasi warga / CCTV
 - `edge_node.py` → `asyncio.start_server()` melayani request yang diteruskan gateway
 - `main_server.py` → `asyncio.start_server()` melayani Edge Node
 
 **5.1a API Gateway:**
-
 - `client_simulator.py` → mengirim request HTTP ke `api_gateway.py`
 - `api_gateway.py` → merutekan request ke edge node yang sesuai berdasarkan wilayah
 - `api_gateway.py` → menerapkan routing dan load balancing sederhana via round-robin
 
 **5.2 Komunikasi Antar Node:**
-
 - `edge_node.py` → `sync_ke_main_server()` mengirim rekap data setiap N detik ke Main Server via koneksi socket terpisah
 - Data disertai **Vector Clock** untuk menjaga urutan kausal antar-node
 
@@ -152,15 +144,19 @@ Menjalankan 3 skenario otomatis:
 
 **File:** `benchmark_kinerja.py`
 
-Membandingkan **Sequential** (time.sleep, blocking) vs **Async** (asyncio.sleep, non-blocking) dengan jumlah data yang sama. Hasil contoh (100 data):
+Membandingkan **Sequential** (time.sleep, blocking) vs **Asynchronous** (asyncio.sleep, non-blocking) dalam menangani pemrosesan data (simulasi I/O delay).
 
-| Metrik         | Sequential   | Asynchronous   |
-| -------------- | ------------ | -------------- |
-| Execution Time | 3.12 detik   | 0.07 detik     |
-| Throughput     | 32.08 data/s | 1457.13 data/s |
-| Speedup        | 1.00x        | **45.42x**     |
+Berdasarkan pengujian, diperoleh hasil berikut:
 
-Rumus: S = T_sequential / T_async
+| Jumlah Data | Eksekusi Sequential | Eksekusi Asynchronous | Speedup       |
+| ----------- | ------------------- | --------------------- | ------------- |
+| **100**     | 3.25 detik          | 0.05 detik            | **60.8x**     |
+| **1,000**   | 30.39 detik         | 0.05 detik            | **532.5x**    |
+| **10,000**  | 303.98 detik        | 0.11 detik            | **2534.4x**   |
+
+*Catatan: Throughput sequential terpantau konstan di kisaran ~32 data/s, sedangkan throughput asynchronous meningkat eksponensial hingga >83.000 data/s pada n=10.000.*
+
+Rumus: `Speedup = T_sequential / T_async`
 
 ### Tantangan Sistem & Solusi
 
@@ -175,7 +171,6 @@ Rumus: S = T_sequential / T_async
 ## Fitur Vector Clock
 
 Setiap node memiliki **Vector Clock** — dictionary `{node_id: counter}`:
-
 - Sebelum kirim pesan: increment counter sendiri
 - Saat menerima pesan: merge VC (`max` per key)
 - Main Server menyimpan VC global = merge dari semua Edge Node
@@ -193,7 +188,6 @@ Dashboard menampilkan matriks Vector Clock secara visual.
 ## Dashboard Monitoring
 
 Dashboard web bergaya **command center** smart city:
-
 - Peta Jakarta dengan indikator status 5 node wilayah (hijau/merah)
 - Grafik throughput real-time (Chart.js)
 - Status panel per Edge Node + Vector Clock visualizer
@@ -203,13 +197,16 @@ Dashboard web bergaya **command center** smart city:
 ## Argumen CLI
 
 ### main_server.py
-
 | Argumen  | Default | Keterangan                                  |
 | -------- | ------- | ------------------------------------------- |
 | `--port` | 9000    | Port TCP untuk menerima sync dari Edge Node |
 
-### edge_node.py
+### api_gateway.py
+| Argumen  | Default | Keterangan                                  |
+| -------- | ------- | ------------------------------------------- |
+| `--port` | 8000    | Port HTTP untuk menerima request client     |
 
+### edge_node.py
 | Argumen           | Default   | Keterangan                                   |
 | ----------------- | --------- | -------------------------------------------- |
 | `--region`        | (wajib)   | Nama wilayah, contoh: Jaksel                 |
@@ -219,23 +216,20 @@ Dashboard web bergaya **command center** smart city:
 | `--sync-interval` | 5         | Interval sinkronisasi ke Main Server (detik) |
 
 ### client_simulator.py
-
 | Argumen    | Default   | Keterangan                            |
 | ---------- | --------- | ------------------------------------- |
 | `--host`   | 127.0.0.1 | Host API Gateway tujuan               |
-| `--port`   | (wajib)   | Port Edge Node tujuan                 |
+| `--port`   | (wajib)   | Port API Gateway tujuan               |
 | `--region` | (wajib)   | Nama wilayah tujuan                   |
 | `--jumlah` | 50        | Jumlah data dummy yang dikirim        |
 | `--chaos`  | False     | Mode chaos: 10% koneksi diputus paksa |
 
 ### benchmark_kinerja.py
-
 | Argumen    | Default | Keterangan              |
 | ---------- | ------- | ----------------------- |
 | `--jumlah` | 100     | Jumlah data untuk diuji |
 
 ### dashboard_server.py
-
 | Argumen  | Default | Keterangan                 |
 | -------- | ------- | -------------------------- |
 | `--port` | 8080    | Port HTTP server dashboard |
