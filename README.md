@@ -31,7 +31,7 @@ Pemrosesan Data Terpadu Jakarta Smart City — integrasi laporan warga
 
 ### A. Demo Skala Penuh
 
-Cara paling mudah untuk mendemokan sistem ini adalah menggunakan script simulasi skala penuh. Script ini secara otomatis menjalankan Main Server, Dashboard, kelima Edge Node, dan terus-menerus menembakkan data acak ke semua node secara _background_. API Gateway tetap tersedia sebagai komponen tambahan opsional.
+Cara paling mudah untuk mendemokan sistem ini adalah menggunakan script simulasi skala penuh. Script ini secara otomatis menjalankan Main Server, API Gateway, Dashboard, kelima Edge Node, dan terus-menerus menembakkan data acak ke semua node secara _background_.
 
 Cukup buka 1 terminal dan jalankan:
 
@@ -44,7 +44,7 @@ Anda akan melihat dashboard command center yang menyala secara dinamis, dengan d
 
 ### B. Demo Manual (Sistem Lengkap)
 
-Jika Anda ingin menjalankan komponen satu-per-satu secara manual, buka **5 terminal** terpisah dan jalankan dalam urutan berikut:
+Jika Anda ingin menjalankan komponen satu-per-satu secara manual, buka **6 terminal** terpisah dan jalankan dalam urutan berikut:
 
 **Terminal 1 — Main Server:**
 
@@ -52,7 +52,13 @@ Jika Anda ingin menjalankan komponen satu-per-satu secara manual, buka **5 termi
 python main_server.py --port 9000
 ```
 
-**Terminal 2 — Dashboard Server:**
+**Terminal 2 — API Gateway:**
+
+```
+python api_gateway.py --port 8000
+```
+
+**Terminal 3 — Dashboard Server:**
 
 ```
 python dashboard_server.py --port 8080
@@ -60,18 +66,18 @@ python dashboard_server.py --port 8080
 
 Buka browser → `http://localhost:8080`
 
-**Terminal 3 & 4 — Edge Node per wilayah:**
+**Terminal 4 & 5 — Edge Node per wilayah:**
 
 ```
 python edge_node.py --region Jaksel --port 9001
 python edge_node.py --region Jakpus --port 9002
 ```
 
-**Terminal 5 — Simulasi client (kirim data dummy):**
+**Terminal 6 — Simulasi client (kirim data dummy):**
 
 ```
-python client_simulator.py --port 9001 --region Jaksel --jumlah 50
-python client_simulator.py --port 9002 --region Jakpus --jumlah 50
+python client_simulator.py --port 8000 --region Jaksel --jumlah 50
+python client_simulator.py --port 8000 --region Jakpus --jumlah 50
 ```
 
 Tunggu 5 detik → lihat sync terjadi di terminal Edge Node + data muncul di dashboard.
@@ -79,7 +85,7 @@ Tunggu 5 detik → lihat sync terjadi di terminal Edge Node + data muncul di das
 **Mode Chaos (simulasi client crash):**
 
 ```
-python client_simulator.py --port 9001 --region Jaksel --jumlah 50 --chaos
+python client_simulator.py --port 8000 --region Jaksel --jumlah 50 --chaos
 ```
 
 ### B. Benchmark Kinerja
@@ -127,13 +133,13 @@ Menjalankan 3 skenario otomatis:
 
 **5.1 Socket Programming (Client-Server):**
 
-- `edge_node.py` → `asyncio.start_server()` melayani client (warga/sensor)
+- `api_gateway.py` → menerima request HTTP dari aplikasi warga / CCTV
+- `edge_node.py` → `asyncio.start_server()` melayani request yang diteruskan gateway
 - `main_server.py` → `asyncio.start_server()` melayani Edge Node
 
-**5.1a API Gateway (opsional, tambahan arsitektur):**
+**5.1a API Gateway:**
 
-- `api_gateway.py` → menerima request HTTP dari aplikasi warga / CCTV
-- `client_simulator.py` → dapat mengirim request HTTP ke `api_gateway.py` lewat flag `--via-gateway`
+- `client_simulator.py` → mengirim request HTTP ke `api_gateway.py`
 - `api_gateway.py` → merutekan request ke edge node yang sesuai berdasarkan wilayah
 - `api_gateway.py` → menerapkan routing dan load balancing sederhana via round-robin
 
@@ -216,9 +222,9 @@ Dashboard web bergaya **command center** smart city:
 
 | Argumen    | Default   | Keterangan                            |
 | ---------- | --------- | ------------------------------------- |
-| `--host`   | 127.0.0.1 | Host Edge Node tujuan                 |
+| `--host`   | 127.0.0.1 | Host API Gateway tujuan               |
 | `--port`   | (wajib)   | Port Edge Node tujuan                 |
-| `--region` | (wajib)   | Nama wilayah Edge Node tujuan         |
+| `--region` | (wajib)   | Nama wilayah tujuan                   |
 | `--jumlah` | 50        | Jumlah data dummy yang dikirim        |
 | `--chaos`  | False     | Mode chaos: 10% koneksi diputus paksa |
 

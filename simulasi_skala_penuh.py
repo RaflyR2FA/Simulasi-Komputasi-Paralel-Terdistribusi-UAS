@@ -70,7 +70,7 @@ def main():
     processes.append(p_main)
     time.sleep(2)
     
-    print("[2/5] Menjalankan API Gateway opsional (Port 8000)...")
+    print("[2/5] Menjalankan API Gateway (Port 8000)...")
     p_gateway = subprocess.Popen([PYTHON, os.path.join(BASE_DIR, 'api_gateway.py'), '--port', '8000'])
     processes.append(p_gateway)
     time.sleep(1)
@@ -94,11 +94,11 @@ def main():
     
     time.sleep(3)
     
-    print("\n[5/5] Mulai menghasilkan traffic data kontinu langsung ke Edge Node...")
+    print("\n[5/5] Mulai menghasilkan traffic data kontinu melalui API Gateway...")
     print("=" * 64)
     print("  SISTEM BERJALAN SKALA PENUH!")
     print("  -> Buka browser: http://localhost:8080 untuk melihat Dashboard")
-    print("  -> API Gateway opsional aktif di http://localhost:8000")
+    print("  -> API Gateway aktif di http://localhost:8000")
     print("  -> Tekan Ctrl+C di terminal ini untuk menghentikan semua.")
     print("=" * 64 + "\n")
     
@@ -111,7 +111,7 @@ def main():
                 subprocess.Popen([
                     PYTHON, os.path.join(BASE_DIR, 'client_simulator.py'),
                     '--region', node['region'],
-                    '--port', str(node['port']),
+                    '--port', '8000',
                     '--jumlah', str(jumlah_data)
                 ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 
