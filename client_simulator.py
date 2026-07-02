@@ -44,26 +44,12 @@ DESKRIPSI_LAPORAN = [
 
 STATUS_SENSOR = ["lancar", "padat", "macet total", "siaga banjir"]
 
-
-# =============================================================================
-# Vector Clock Sederhana — Client Side (Poin 6)
-# =============================================================================
-# Client menggunakan counter sederhana (bukan full vector clock) karena
-# client bersifat unidirectional — hanya mengirim data, tidak menerima
-# event dari node lain. Counter ini cukup untuk menandai urutan pengiriman.
-
 client_vc = {"Client": 0}
-
 
 def _increment_vc() -> dict:
     """Increment vector clock client dan kembalikan salinannya."""
     client_vc["Client"] += 1
     return dict(client_vc)
-
-
-# =============================================================================
-# Generator Data Dummy
-# =============================================================================
 
 def buat_laporan_warga(i: int, region: str) -> dict:
     """Buat satu data dummy laporan warga."""
@@ -77,7 +63,6 @@ def buat_laporan_warga(i: int, region: str) -> dict:
         "vector_clock": _increment_vc(),
     }
 
-
 def buat_log_sensor(i: int, region: str) -> dict:
     """Buat satu data dummy log sensor CCTV."""
     return {
@@ -88,11 +73,6 @@ def buat_log_sensor(i: int, region: str) -> dict:
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "vector_clock": _increment_vc(),
     }
-
-
-# =============================================================================
-# Kirim Satu Data — Socket Client (Poin 5.1 & 7)
-# =============================================================================
 
 async def kirim_satu(host: str, port: int, data: dict, chaos: bool = False) -> str:
     """
@@ -118,7 +98,6 @@ async def kirim_satu(host: str, port: int, data: dict, chaos: bool = False) -> s
         writer.write((json.dumps(data) + "\n").encode())
         await writer.drain()
 
-        # Chaos mode: 10% probabilitas memutus koneksi tanpa tunggu respons
         if chaos and random.random() < 0.1:
             writer.close()
             try:
@@ -127,7 +106,7 @@ async def kirim_satu(host: str, port: int, data: dict, chaos: bool = False) -> s
                 pass
             return "chaos_drop"
 
-        await asyncio.wait_for(reader.readline(), timeout=10)   # tunggu ACK dari Edge Node
+        await asyncio.wait_for(reader.readline(), timeout=10)
         writer.close()
         await writer.wait_closed()
         return "sukses"
@@ -135,10 +114,6 @@ async def kirim_satu(host: str, port: int, data: dict, chaos: bool = False) -> s
     except (ConnectionRefusedError, OSError, asyncio.TimeoutError, Exception):
         return "gagal"
 
-
-# =============================================================================
-# Main — Entry Point
-# =============================================================================
 
 async def main(host: str, port: int, region: str, jumlah: int, chaos: bool):
     """
@@ -154,8 +129,6 @@ async def main(host: str, port: int, region: str, jumlah: int, chaos: bool):
 
     tugas = []
     for i in range(jumlah):
-        # 60% laporan warga, 40% data sensor - mensimulasikan dua sumber data
-        # yang masuk bersamaan sesuai rancangan poin 2 & 3.
         data = buat_laporan_warga(i, region) if random.random() < 0.6 else buat_log_sensor(i, region)
         tugas.append(kirim_satu(host, port, data, chaos=chaos))
 

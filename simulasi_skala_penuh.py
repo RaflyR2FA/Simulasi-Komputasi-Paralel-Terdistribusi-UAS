@@ -18,7 +18,6 @@ import signal
 import io
 import random
 
-# Fix encoding untuk Windows terminal
 if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
@@ -55,7 +54,6 @@ if sys.platform != 'win32':
     signal.signal(signal.SIGTERM, cleanup)
 
 def main():
-    # Bersihkan file DB & status lama agar mulai dari nol
     for f in ['db_laporan_warga.json', 'db_log_sensor.json', 'status.json']:
         if os.path.exists(f):
             try:
@@ -67,19 +65,16 @@ def main():
     print("  SIMULASI SKALA PENUH JAKARTA SMART CITY (5 NODE)")
     print("=" * 64)
     
-    # 1. Start Main Server
     print("[1/4] Menjalankan Main Server (Port 9000)...")
     p_main = subprocess.Popen([PYTHON, os.path.join(BASE_DIR, 'main_server.py'), '--port', '9000'])
     processes.append(p_main)
     time.sleep(2)
     
-    # 2. Start Dashboard
     print("[2/4] Menjalankan Dashboard Server (Port 8080)...")
     p_dash = subprocess.Popen([PYTHON, os.path.join(BASE_DIR, 'dashboard_server.py'), '--port', '8080'])
     processes.append(p_dash)
     time.sleep(1)
     
-    # 3. Start 5 Edge Nodes
     print("[3/4] Menjalankan 5 Edge Node Wilayah...")
     for node in nodes:
         print(f"      - Edge Node {node['region']} (Port {node['port']})")
@@ -88,7 +83,7 @@ def main():
             '--region', node['region'], 
             '--port', str(node['port']),
             '--main-port', '9000',
-            '--sync-interval', '3'  # Sync cepat 3 detik agar dashboard sangat reaktif
+            '--sync-interval', '3'
         ])
         processes.append(p_edge)
     
@@ -102,14 +97,11 @@ def main():
     print("=" * 64 + "\n")
     
     try:
-        # Loop untuk simulasi traffic kontinu
         while True:
-            # Pilih 1-4 node random untuk dikirimi data
             target_nodes = random.sample(nodes, k=random.randint(1, 4))
             
             for node in target_nodes:
                 jumlah_data = random.randint(5, 25)
-                # Jalankan client_simulator di background
                 subprocess.Popen([
                     PYTHON, os.path.join(BASE_DIR, 'client_simulator.py'),
                     '--region', node['region'],
@@ -117,7 +109,6 @@ def main():
                     '--jumlah', str(jumlah_data)
                 ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 
-            # Jeda 2 detik sebelum batch traffic berikutnya
             time.sleep(2)
             
     except KeyboardInterrupt:

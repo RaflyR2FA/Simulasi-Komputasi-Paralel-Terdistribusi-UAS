@@ -10,7 +10,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* ===== RESET & BASE ===== */
         *, *::before, *::after {
             margin: 0;
             padding: 0;
@@ -41,7 +40,6 @@
             line-height: 1.6;
         }
 
-        /* Subtle background pattern */
         body::before {
             content: '';
             position: fixed;
@@ -54,13 +52,11 @@
             z-index: 0;
         }
 
-        /* ===== SCROLLBAR ===== */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
-        /* ===== ANIMATIONS ===== */
         @keyframes pulse {
             0% { transform: scale(1); opacity: 1; }
             100% { transform: scale(1.8); opacity: 0; }
@@ -95,7 +91,6 @@
             animation: fadeInUp 0.5s ease forwards;
         }
 
-        /* ===== LAYOUT ===== */
         .dashboard {
             position: relative;
             z-index: 1;
@@ -104,7 +99,6 @@
             padding: 0 24px 40px;
         }
 
-        /* ===== GLASS CARD ===== */
         .glass-card {
             background: var(--bg-card);
             backdrop-filter: blur(12px);
@@ -120,7 +114,6 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.04) inset;
         }
 
-        /* ===== HEADER ===== */
         .header {
             position: sticky;
             top: 0;
@@ -241,7 +234,6 @@
             animation: pulse 1.5s ease-out infinite;
         }
 
-        /* ===== CONNECTION ERROR BANNER ===== */
         .connection-error {
             display: none;
             padding: 12px 24px;
@@ -260,7 +252,6 @@
             display: block;
         }
 
-        /* ===== STAT CARDS ROW ===== */
         .stat-cards {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -336,7 +327,6 @@
             margin-top: 4px;
         }
 
-        /* ===== MAP + CHART ROW ===== */
         .map-chart-row {
             display: grid;
             grid-template-columns: 2fr 3fr;
@@ -344,7 +334,6 @@
             margin-bottom: 24px;
         }
 
-        /* Jakarta Map */
         .map-container {
             padding: 24px;
             position: relative;
@@ -367,7 +356,6 @@
             border: 1px solid rgba(255,255,255,0.04);
         }
 
-        /* SVG connection lines */
         .map-lines {
             position: absolute;
             inset: 0;
@@ -427,7 +415,6 @@
             text-shadow: 0 1px 4px rgba(0,0,0,0.8);
         }
 
-        /* Throughput Chart */
         .chart-container {
             padding: 24px;
         }
@@ -441,7 +428,6 @@
             height: 280px;
         }
 
-        /* ===== SECTION TITLE ===== */
         .section-title {
             display: flex;
             align-items: center;
@@ -467,7 +453,6 @@
         .section-title .title-icon.green { background: rgba(0,255,136,0.1); color: var(--green); }
         .section-title .title-icon.red { background: rgba(255,68,68,0.1); color: var(--red); }
 
-        /* ===== NODE STATUS CARDS ===== */
         .node-cards-section {
             margin-bottom: 24px;
         }
@@ -585,7 +570,6 @@
             font-variant-numeric: tabular-nums;
         }
 
-        /* ===== VC MATRIX + ALERTS ROW ===== */
         .vc-alerts-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -597,7 +581,6 @@
             padding: 24px;
         }
 
-        /* VC Matrix Table */
         .vc-table {
             width: 100%;
             border-collapse: collapse;
@@ -649,7 +632,6 @@
             font-weight: 600;
         }
 
-        /* Alerts Panel */
         .alerts-list {
             max-height: 320px;
             overflow-y: auto;
@@ -724,7 +706,6 @@
             font-variant-numeric: tabular-nums;
         }
 
-        /* ===== RECENT DATA TABLE ===== */
         .recent-table-container {
             padding: 24px;
         }
@@ -815,7 +796,6 @@
             font-size: 11px;
         }
 
-        /* ===== PLACEHOLDER ===== */
         .placeholder-text {
             color: var(--text-secondary);
             font-size: 13px;
@@ -833,7 +813,6 @@
             font-style: normal;
         }
 
-        /* ===== RESPONSIVE ===== */
         @media (max-width: 1200px) {
             .node-cards {
                 grid-template-columns: repeat(3, 1fr);
@@ -876,7 +855,6 @@
 </head>
 <body>
 
-<!-- HEADER -->
 <header class="header">
     <div class="header-left">
         <div class="logo-icon">JSC</div>
@@ -896,12 +874,10 @@
 
 <main class="dashboard">
 
-    <!-- CONNECTION ERROR BANNER -->
     <div id="connectionError" class="connection-error">
         ⚠ Koneksi ke server terputus. Dashboard akan mencoba menghubungkan kembali secara otomatis...
     </div>
 
-    <!-- STAT CARDS -->
     <section class="stat-cards">
         <div class="stat-card glass-card">
             <div class="stat-icon">📋</div>
@@ -929,7 +905,6 @@
         </div>
     </section>
 
-    <!-- MAP + CHART ROW -->
     <section class="map-chart-row">
         <div class="map-container glass-card">
             <div class="section-title">
@@ -937,7 +912,6 @@
                 Peta Node Jakarta
             </div>
             <div class="map-area" id="jakartaMap">
-                <!-- SVG for connection lines -->
                 <svg class="map-lines" id="mapLines" viewBox="0 0 100 100" preserveAspectRatio="none">
                     <!-- Jakpus to Jakut -->
                     <line x1="50" y1="45" x2="50" y2="15" />
@@ -957,7 +931,6 @@
                     <line x1="50" y1="80" x2="80" y2="50" />
                 </svg>
 
-                <!-- Node dots -->
                 <div class="map-node" style="left:50%;top:45%;" data-node="Jakpus">
                     <div class="map-dot online" id="mapDot-Jakpus"></div>
                     <span class="map-label">Jakpus</span>
@@ -992,7 +965,6 @@
         </div>
     </section>
 
-    <!-- NODE STATUS CARDS -->
     <section class="node-cards-section">
         <div class="section-title" style="margin-bottom:16px;">
             <span class="title-icon purple">🖥</span>
@@ -1005,7 +977,6 @@
         </div>
     </section>
 
-    <!-- VC MATRIX + ALERTS -->
     <section class="vc-alerts-row">
         <div class="vc-matrix-container glass-card">
             <div class="section-title">
@@ -1028,7 +999,6 @@
         </div>
     </section>
 
-    <!-- RECENT DATA TABLE -->
     <section class="recent-table-container glass-card">
         <div class="section-title">
             <span class="title-icon cyan">📊</span>
@@ -1060,13 +1030,11 @@
 </main>
 
 <script>
-// ===== GLOBALS =====
 let throughputChart = null;
 let failCount = 0;
 const MAX_FAIL = 3;
 const ALL_NODES = ['Jakpus', 'Jakut', 'Jakbar', 'Jaksel', 'Jaktim'];
 
-// ===== LIVE CLOCK =====
 function updateClock() {
     const now = new Date();
     const h = String(now.getHours()).padStart(2, '0');
@@ -1078,7 +1046,6 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// ===== UPTIME FORMAT =====
 function formatUptime(seconds) {
     if (!seconds && seconds !== 0) return '--:--:--';
     const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
@@ -1087,7 +1054,6 @@ function formatUptime(seconds) {
     return `${h}:${m}:${s}`;
 }
 
-// ===== RELATIVE TIME =====
 function relativeTime(isoStr) {
     if (!isoStr) return '-';
     try {
@@ -1105,7 +1071,6 @@ function relativeTime(isoStr) {
     }
 }
 
-// ===== FORMAT TIMESTAMP =====
 function formatTimestamp(isoStr) {
     if (!isoStr) return '-';
     try {
@@ -1116,7 +1081,6 @@ function formatTimestamp(isoStr) {
     }
 }
 
-// ===== NUMBER ANIMATION =====
 function animateNumber(el, newVal) {
     const current = parseInt(el.textContent.replace(/[^\d]/g, '')) || 0;
     if (current === newVal) return;
@@ -1125,7 +1089,6 @@ function animateNumber(el, newVal) {
     setTimeout(() => { el.style.transform = 'scale(1)'; }, 200);
 }
 
-// ===== UPDATE STAT CARDS =====
 function updateStatCards(stats, uptimeSeconds) {
     if (stats) {
         animateNumber(document.getElementById('statLaporan'), stats.total_laporan || 0);
@@ -1135,7 +1098,6 @@ function updateStatCards(stats, uptimeSeconds) {
     document.getElementById('statUptime').textContent = formatUptime(uptimeSeconds);
 }
 
-// ===== UPDATE NODE MAP =====
 function updateNodeMap(registry) {
     if (!registry) return;
     ALL_NODES.forEach(name => {
@@ -1150,7 +1112,6 @@ function updateNodeMap(registry) {
     });
 }
 
-// ===== UPDATE NODE CARDS =====
 function updateNodeCards(registry) {
     if (!registry || Object.keys(registry).length === 0) return;
 
@@ -1204,11 +1165,9 @@ function updateNodeCards(registry) {
     container.innerHTML = html;
 }
 
-// ===== UPDATE VECTOR CLOCK MATRIX =====
 function updateVectorClockMatrix(globalVC, registry) {
     const container = document.getElementById('vcMatrix');
 
-    // Collect all known node IDs from global VC and registry
     const allKeys = new Set();
     if (globalVC) Object.keys(globalVC).forEach(k => allKeys.add(k));
     if (registry) {
@@ -1224,7 +1183,6 @@ function updateVectorClockMatrix(globalVC, registry) {
         return;
     }
 
-    // Rows: each node + MainServer (global)
     const rows = {};
     if (registry) {
         Object.entries(registry).forEach(([name, info]) => {
@@ -1254,7 +1212,6 @@ function updateVectorClockMatrix(globalVC, registry) {
     container.innerHTML = html;
 }
 
-// ===== UPDATE ALERTS =====
 function updateAlerts(alerts) {
     const container = document.getElementById('alertsList');
     if (!alerts || alerts.length === 0) {
@@ -1262,7 +1219,6 @@ function updateAlerts(alerts) {
         return;
     }
 
-    // Newest first, max 50
     const sorted = [...alerts].reverse().slice(0, 50);
     let html = '';
     sorted.forEach(alert => {
@@ -1279,7 +1235,6 @@ function updateAlerts(alerts) {
     container.innerHTML = html;
 }
 
-// ===== UPDATE THROUGHPUT CHART =====
 function initChart() {
     const ctx = document.getElementById('throughputChart').getContext('2d');
 
@@ -1401,7 +1356,6 @@ function initChart() {
 function updateThroughputChart(history) {
     if (!throughputChart || !history || history.length === 0) return;
 
-    // Keep last 20 data points
     const data = history.slice(-20);
     const labels = data.map(d => {
         if (!d.waktu) return '';
@@ -1419,7 +1373,6 @@ function updateThroughputChart(history) {
     throughputChart.update('none');
 }
 
-// ===== UPDATE RECENT TABLE =====
 function updateRecentTable(data) {
     const tbody = document.getElementById('recentTableBody');
     if (!data || !data.recent || data.recent.length === 0) {
@@ -1452,7 +1405,6 @@ function updateRecentTable(data) {
     tbody.innerHTML = html;
 }
 
-// ===== UPDATE OVERALL STATUS =====
 function updateOverallStatus(registry) {
     const el = document.getElementById('overallStatus');
     const textEl = document.getElementById('overallStatusText');
@@ -1479,7 +1431,6 @@ function updateOverallStatus(registry) {
     }
 }
 
-// ===== FETCH STATUS =====
 async function fetchStatus() {
     try {
         const res = await fetch('/api/status');
@@ -1504,7 +1455,6 @@ async function fetchStatus() {
     }
 }
 
-// ===== FETCH RECENT DATA =====
 async function fetchRecentData() {
     try {
         const res = await fetch('/api/db/recent');
@@ -1516,7 +1466,6 @@ async function fetchRecentData() {
     }
 }
 
-// ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
     initChart();
     fetchStatus();

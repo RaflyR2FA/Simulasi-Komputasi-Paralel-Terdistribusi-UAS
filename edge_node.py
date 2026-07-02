@@ -56,9 +56,6 @@ import argparse
 from datetime import datetime
 
 
-# =============================================================================
-# Vector Clock — Menjaga Konsistensi & Urutan Logis Kejadian (Poin 6)
-# =============================================================================
 class VectorClock:
     """
     Implementasi Vector Clock untuk menentukan urutan kausal (causal ordering)
@@ -94,26 +91,13 @@ class VectorClock:
     def __str__(self):
         return str(self.clock)
 
-
-# =============================================================================
-# Variabel Global
-# =============================================================================
-
-# Buffer penampung sementara hasil pemrosesan, sebelum disinkronkan
-# ke Main Server (lihat sync_ke_main_server).
 buffer_laporan = []
 buffer_sensor = []
-lock = None        # asyncio.Lock, diinisialisasi di dalam main()
-REGION = None      # nama wilayah, diisi dari argumen CLI
+lock = None
+REGION = None
 
-# Vector Clock & Statistik — diinisialisasi di dalam main()
-vc = None          # VectorClock instance
-stats = None       # dict statistik koneksi dan sinkronisasi
-
-
-# =============================================================================
-# Proses Laporan — Asynchronous Processing (Poin 4)
-# =============================================================================
+vc = None
+stats = None
 
 async def proses_laporan(data: dict) -> dict:
     """
@@ -131,10 +115,9 @@ async def proses_laporan(data: dict) -> dict:
     """
     global vc
 
-    # Increment vector clock sebelum memproses (event lokal)
     vc.increment()
 
-    delay_io = random.uniform(0.05, 0.25)   # simulasi waktu simpan foto / tulis disk
+    delay_io = random.uniform(0.05, 0.25)
     await asyncio.sleep(delay_io)
 
     data["status_validasi"] = "valid"
@@ -142,11 +125,6 @@ async def proses_laporan(data: dict) -> dict:
     data["waktu_proses"] = datetime.now().isoformat(timespec="milliseconds")
     data["vector_clock"] = vc.to_dict()
     return data
-
-
-# =============================================================================
-# Handle Client — Socket Server untuk Warga & Sensor (Poin 5.1)
-# =============================================================================
 
 async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     """
@@ -182,7 +160,6 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
             stats["koneksi_gagal"] += 1
             return
 
-        # Merge vector clock dari client jika ada
         if "vector_clock" in data:
             vc.merge(data["vector_clock"])
 
@@ -195,7 +172,6 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                 buffer_laporan.append(hasil)
             n_laporan, n_sensor = len(buffer_laporan), len(buffer_sensor)
 
-        # Update statistik
         stats["koneksi_sukses"] += 1
         stats["total_diproses"] += 1
 
@@ -203,7 +179,6 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         print(f"[EdgeNode-{REGION}] diterima dari {addr} | tipe={hasil.get('tipe')} "
               f"id={id_data} | buffer saat ini: laporan={n_laporan}, sensor={n_sensor}")
 
-        # Balasan/notifikasi singkat ke pengirim bahwa data sudah diterima & valid.
         ack = json.dumps({
             "status": "diterima",
             "diproses_oleh": f"EdgeNode-{REGION}",
@@ -223,11 +198,6 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
             await writer.wait_closed()
         except Exception:
             pass
-
-
-# =============================================================================
-# Sync ke Main Server — Komunikasi Antar Node (Poin 5.2 & 6 & 7)
-# =============================================================================
 
 async def sync_ke_main_server(main_host: str, main_port: int, interval: int):
     """
@@ -251,7 +221,7 @@ async def sync_ke_main_server(main_host: str, main_port: int, interval: int):
     """
     global vc, stats
 
-    backoff = 1  # detik — interval retry, mulai dari 1 detik (base)
+    backoff = 1
 
     while True:
         await asyncio.sleep(interval)
@@ -259,7 +229,6 @@ async def sync_ke_main_server(main_host: str, main_port: int, interval: int):
         async with lock:
             if not buffer_laporan and not buffer_sensor:
                 continue
-            # Increment vector clock sebelum mengirim (event pengiriman)
             vc.increment()
 
             paket = {
@@ -275,7 +244,6 @@ async def sync_ke_main_server(main_host: str, main_port: int, interval: int):
             buffer_sensor.clear()
 
         try:
-            # Gunakan timeout untuk mencegah koneksi hang selamanya
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection(main_host, main_port),
                 timeout=10
@@ -289,11 +257,9 @@ async def sync_ke_main_server(main_host: str, main_port: int, interval: int):
             writer.close()
             await writer.wait_closed()
 
-            # Merge vector clock dari Main Server
             if "vector_clock" in balasan:
                 vc.merge(balasan["vector_clock"])
 
-            # Sync berhasil — reset backoff ke base
             backoff = 1
             stats["total_sync_sukses"] += 1
 
@@ -311,20 +277,12 @@ async def sync_ke_main_server(main_host: str, main_port: int, interval: int):
                   f"Data dikembalikan ke buffer. "
                   f"Retry backoff: {backoff}s (berikutnya: {min(backoff * 2, 30)}s)")
 
-            # Data yang gagal terkirim dikembalikan ke buffer agar tidak hilang
-            # (fault tolerance — poin 7).
             async with lock:
                 buffer_laporan.extend(paket["laporan_warga"])
                 buffer_sensor.extend(paket["log_sensor"])
 
-            # Terapkan exponential backoff sebelum retry berikutnya
             await asyncio.sleep(backoff)
-            backoff = min(backoff * 2, 30)  # double, cap at 30 seconds
-
-
-# =============================================================================
-# Cetak Statistik — Monitoring Periodik (Poin 7 - Observability)
-# =============================================================================
+            backoff = min(backoff * 2, 30)
 
 async def cetak_statistik():
     """
@@ -348,11 +306,6 @@ async def cetak_statistik():
         print(f"  Vector Clock      : {vc}")
         print(f"{'=' * 60}")
         print()
-
-
-# =============================================================================
-# Main — Entry Point
-# =============================================================================
 
 async def main(region: str, port: int, main_host: str, main_port: int, sync_interval: int):
     """
@@ -386,7 +339,6 @@ async def main(region: str, port: int, main_host: str, main_port: int, sync_inte
     print("=" * 60)
     print()
 
-    # Jalankan background tasks
     asyncio.create_task(sync_ke_main_server(main_host, main_port, sync_interval))
     asyncio.create_task(cetak_statistik())
 

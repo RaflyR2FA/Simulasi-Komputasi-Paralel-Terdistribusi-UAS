@@ -16,7 +16,6 @@ import os
 import argparse
 from urllib.parse import urlparse
 
-# Base directory = same folder as this script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 STATUS_FILE = os.path.join(BASE_DIR, "status.json")
@@ -82,7 +81,6 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
                 except (json.JSONDecodeError, IOError):
                     pass
 
-        # Sort by timestamp descending, take last 20
         recent.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         recent = recent[:20]
 
@@ -96,7 +94,6 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(content)
 
     def log_message(self, format, *args):
-        # Suppress default request logging to keep terminal clean
         pass
 
 

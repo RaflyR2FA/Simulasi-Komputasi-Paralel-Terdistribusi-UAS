@@ -26,12 +26,9 @@ import sys
 import io
 from datetime import datetime
 
-# Fix encoding untuk Windows terminal (cp1252 tidak mendukung karakter Unicode box-drawing)
 if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
-# Simulasi delay I/O (menyimpan foto, tulis DB, dll)
-# Range sama dengan yang dipakai di edge_node.py
 IO_DELAY_MIN = 0.01  
 IO_DELAY_MAX = 0.05
 
@@ -66,7 +63,6 @@ def proses_sequential(data_list: list) -> float:
     """
     start = time.perf_counter()
     for data in data_list:
-        # Simulasi operasi I/O blocking
         delay = random.uniform(IO_DELAY_MIN, IO_DELAY_MAX)
         time.sleep(delay)
         data["status"] = "diproses"
@@ -140,22 +136,18 @@ def main():
     print(f"  Jumlah data: {jumlah:,}")
     print(f"{'='*64}")
     
-    # Generate data
     print(f"\n[1/3] Membuat {jumlah:,} data dummy...")
     data_seq = generate_dummy_data(jumlah)
-    data_async = generate_dummy_data(jumlah)  # Copy terpisah
+    data_async = generate_dummy_data(jumlah)
     
-    # Sequential
     print(f"[2/3] Menjalankan pemrosesan SEQUENTIAL (blocking)...")
     t_seq = proses_sequential(data_seq)
     print(f"      Selesai dalam {t_seq:.4f} detik")
     
-    # Async 
     print(f"[3/3] Menjalankan pemrosesan ASYNCHRONOUS (non-blocking)...")
     t_async = proses_async(data_async)
     print(f"      Selesai dalam {t_async:.4f} detik")
     
-    # Results
     cetak_hasil(jumlah, t_seq, t_async)
 
 

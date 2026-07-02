@@ -45,10 +45,6 @@ import os
 import argparse
 from datetime import datetime
 
-
-# =============================================================================
-# Vector Clock — Menjaga Konsistensi & Urutan Logis Kejadian (Poin 6)
-# =============================================================================
 class VectorClock:
     """
     Implementasi Vector Clock untuk menentukan urutan kausal (causal ordering)
@@ -84,30 +80,18 @@ class VectorClock:
     def __str__(self):
         return str(self.clock)
 
-
-# =============================================================================
-# Konstanta & Variabel Global
-# =============================================================================
-
 DB_LAPORAN = "db_laporan_warga.json"
 DB_SENSOR = "db_log_sensor.json"
 
-# Variabel-variabel berikut membutuhkan event loop yang aktif, sehingga
-# diinisialisasi di dalam main() menggunakan deklarasi 'global'.
-db_lock = None          # asyncio.Lock — melindungi akses file DB
-registry_lock = None    # asyncio.Lock — melindungi akses node_registry
+db_lock = None
+registry_lock = None
 
-vc = None               # VectorClock — vector clock global Main Server
-node_registry = None    # dict — status tiap Edge Node yang terdaftar
-alert_log = None        # list — log alert/peringatan sistem
-stats = None            # dict — statistik agregat (total laporan, sensor, sync)
-throughput_history = None  # list — riwayat throughput untuk grafik dashboard
-start_time = None       # datetime — waktu server pertama kali aktif
-
-
-# =============================================================================
-# Helper: Load & Save JSON (Distributed Database Files)
-# =============================================================================
+vc = None
+node_registry = None
+alert_log = None
+stats = None
+throughput_history = None
+start_time = None
 
 def _load(path: str) -> list:
     """Muat data dari file JSON. Kembalikan list kosong jika file tidak ada atau rusak."""
@@ -124,11 +108,6 @@ def _save(path: str, data: list):
     """Simpan data ke file JSON dengan indentasi untuk keterbacaan."""
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-
-
-# =============================================================================
-# Distributed Database — Simpan Data Laporan & Sensor (Poin 3)
-# =============================================================================
 
 async def simpan_ke_distributed_db(paket: dict) -> tuple:
     """
@@ -154,17 +133,11 @@ async def simpan_ke_distributed_db(paket: dict) -> tuple:
         _save(DB_LAPORAN, db_laporan)
         _save(DB_SENSOR, db_sensor)
 
-        # Update statistik global
         stats["total_laporan"] = len(db_laporan)
         stats["total_sensor"] = len(db_sensor)
         stats["total_sync"] += 1
 
         return len(db_laporan), len(db_sensor)
-
-
-# =============================================================================
-# Handle Edge Node — Penerima Sinkronisasi (Poin 5.1 & 5.2 & 6)
-# =============================================================================
 
 async def handle_edge_node(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     """
@@ -195,18 +168,15 @@ async def handle_edge_node(reader: asyncio.StreamReader, writer: asyncio.StreamW
         paket = json.loads(raw.decode().strip())
         region = paket.get("region", "Unknown")
 
-        # --- Vector Clock: increment & merge ---
         incoming_vc = paket.get("vector_clock", {})
         vc.increment()
         vc.merge(incoming_vc)
 
-        # --- Simpan ke Distributed DB ---
         total_laporan, total_sensor = await simpan_ke_distributed_db(paket)
 
         n_laporan = len(paket.get("laporan_warga", []))
         n_sensor = len(paket.get("log_sensor", []))
 
-        # --- Update Node Registry ---
         async with registry_lock:
             if region not in node_registry:
                 node_registry[region] = {
@@ -228,7 +198,6 @@ async def handle_edge_node(reader: asyncio.StreamReader, writer: asyncio.StreamW
               f"| total Distributed DB sekarang -> laporan={total_laporan}, sensor={total_sensor} "
               f"| VC={vc}")
 
-        # --- Kirim balasan dengan Vector Clock ---
         balasan = json.dumps({
             "status": "diterima",
             "waktu_server": datetime.now().isoformat(timespec="seconds"),
@@ -241,7 +210,6 @@ async def handle_edge_node(reader: asyncio.StreamReader, writer: asyncio.StreamW
 
     except Exception as e:
         print(f"[MainServer] ERROR menangani koneksi dari {addr}: {e}")
-        # Catat alert agar terlihat di dashboard
         alert_log.append({
             "waktu": datetime.now().isoformat(timespec="seconds"),
             "level": "ERROR",
@@ -254,11 +222,6 @@ async def handle_edge_node(reader: asyncio.StreamReader, writer: asyncio.StreamW
             await writer.wait_closed()
         except Exception:
             pass
-
-
-# =============================================================================
-# Monitor Edge Nodes — Deteksi Node Offline (Poin 7 - Fault Tolerance)
-# =============================================================================
 
 async def monitor_edge_nodes():
     """
@@ -294,11 +257,6 @@ async def monitor_edge_nodes():
                         })
                         print(f"[MainServer] ⚠ WARNING: {pesan}")
 
-
-# =============================================================================
-# Tulis status.json — Interface ke Dashboard (Poin 7 - Observability)
-# =============================================================================
-
 async def tulis_status_json():
     """
     [Poin 7 - Fault Tolerance & Observability]
@@ -320,18 +278,15 @@ async def tulis_status_json():
         now = datetime.now()
         uptime = (now - start_time).total_seconds()
 
-        # Catat titik throughput baru
         throughput_entry = {
             "waktu": now.isoformat(timespec="seconds"),
             "laporan": stats["total_laporan"],
             "sensor": stats["total_sensor"],
         }
         throughput_history.append(throughput_entry)
-        # Batasi riwayat agar tidak membengkak (simpan 60 entry terakhir)
         if len(throughput_history) > 60:
             throughput_history[:] = throughput_history[-60:]
 
-        # Buat snapshot node_registry yang JSON-serializable
         async with registry_lock:
             registry_snapshot = {}
             for region, info in node_registry.items():
@@ -350,7 +305,7 @@ async def tulis_status_json():
             "vector_clock_global": vc.to_dict(),
             "node_registry": registry_snapshot,
             "stats": dict(stats),
-            "alerts": list(alert_log[-50:]),  # simpan 50 alert terakhir
+            "alerts": list(alert_log[-50:]),
             "throughput_history": list(throughput_history),
         }
 
@@ -359,11 +314,6 @@ async def tulis_status_json():
                 json.dump(status, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"[MainServer] Gagal menulis status.json: {e}")
-
-
-# =============================================================================
-# Main — Entry Point
-# =============================================================================
 
 async def main(port: int):
     """
@@ -374,7 +324,6 @@ async def main(port: int):
     global db_lock, registry_lock, vc, node_registry, alert_log
     global stats, throughput_history, start_time
 
-    # Inisialisasi semua state global di dalam event loop
     db_lock = asyncio.Lock()
     registry_lock = asyncio.Lock()
     vc = VectorClock("MainServer")
@@ -384,13 +333,11 @@ async def main(port: int):
     throughput_history = []
     start_time = datetime.now()
 
-    # Muat data DB yang sudah ada untuk menginisialisasi stats
     existing_laporan = _load(DB_LAPORAN)
     existing_sensor = _load(DB_SENSOR)
     stats["total_laporan"] = len(existing_laporan)
     stats["total_sensor"] = len(existing_sensor)
 
-    # Jalankan background tasks
     asyncio.create_task(monitor_edge_nodes())
     asyncio.create_task(tulis_status_json())
 
