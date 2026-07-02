@@ -2,7 +2,7 @@
 simulasi_skala_penuh.py
 =======================
 Script untuk menjalankan demonstrasi Jakarta Smart City skala penuh.
-Menjalankan Main Server, Dashboard, dan 5 Edge Node sekaligus.
+Menjalankan Main Server, API Gateway, Dashboard, dan 5 Edge Node sekaligus.
 Juga secara otomatis mengirimkan traffic data secara kontinu
 untuk keperluan demonstrasi visual pada Dashboard.
 
@@ -65,17 +65,22 @@ def main():
     print("  SIMULASI SKALA PENUH JAKARTA SMART CITY (5 NODE)")
     print("=" * 64)
     
-    print("[1/4] Menjalankan Main Server (Port 9000)...")
+    print("[1/5] Menjalankan Main Server (Port 9000)...")
     p_main = subprocess.Popen([PYTHON, os.path.join(BASE_DIR, 'main_server.py'), '--port', '9000'])
     processes.append(p_main)
     time.sleep(2)
     
-    print("[2/4] Menjalankan Dashboard Server (Port 8080)...")
+    print("[2/5] Menjalankan API Gateway opsional (Port 8000)...")
+    p_gateway = subprocess.Popen([PYTHON, os.path.join(BASE_DIR, 'api_gateway.py'), '--port', '8000'])
+    processes.append(p_gateway)
+    time.sleep(1)
+
+    print("[3/5] Menjalankan Dashboard Server (Port 8080)...")
     p_dash = subprocess.Popen([PYTHON, os.path.join(BASE_DIR, 'dashboard_server.py'), '--port', '8080'])
     processes.append(p_dash)
     time.sleep(1)
     
-    print("[3/4] Menjalankan 5 Edge Node Wilayah...")
+    print("[4/5] Menjalankan 5 Edge Node Wilayah...")
     for node in nodes:
         print(f"      - Edge Node {node['region']} (Port {node['port']})")
         p_edge = subprocess.Popen([
@@ -89,10 +94,11 @@ def main():
     
     time.sleep(3)
     
-    print("\n[4/4] Mulai menghasilkan traffic data kontinu...")
+    print("\n[5/5] Mulai menghasilkan traffic data kontinu langsung ke Edge Node...")
     print("=" * 64)
     print("  SISTEM BERJALAN SKALA PENUH!")
     print("  -> Buka browser: http://localhost:8080 untuk melihat Dashboard")
+    print("  -> API Gateway opsional aktif di http://localhost:8000")
     print("  -> Tekan Ctrl+C di terminal ini untuk menghentikan semua.")
     print("=" * 64 + "\n")
     
