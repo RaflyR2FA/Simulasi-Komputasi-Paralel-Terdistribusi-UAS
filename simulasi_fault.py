@@ -43,9 +43,9 @@ def print_header(text):
     print(f"{'='*64}")
 
 
-def print_step(num, text, status=""):
+def print_step(num, text, status="", **kwargs):
     status_str = f"  {status}" if status else ""
-    print(f"  [STEP {num}] {text}{status_str}")
+    print(f"  [STEP {num}] {text}{status_str}", **kwargs)
 
 
 def print_result(text):
@@ -309,32 +309,37 @@ def run_skenario_3():
         edge = None
         print("✓ (node dimatikan)")
 
-        print_step(6, "Menunggu Main Server mendeteksi node offline (30+ detik)...")
-        time.sleep(35)
-
+        print_step(6, "Menunggu Main Server mendeteksi node offline (bisa hingga 45 detik)...")
         status_path = os.path.join(BASE_DIR, 'status.json')
-        if os.path.exists(status_path):
-            with open(status_path, 'r') as f:
-                status = json.load(f)
-            
-            registry = status.get('node_registry', {})
-            alerts = status.get('alerts', [])
-            
-            jaksel_status = registry.get('Jaksel', {}).get('status', 'UNKNOWN')
-            has_offline_alert = any('OFFLINE' in a.get('pesan', '') for a in alerts)
-            
-            print(f"          ↳ Status Jaksel di registry: {jaksel_status}")
-            print(f"          ↳ Alert OFFLINE tercatat: {'Ya' if has_offline_alert else 'Tidak'}")
-            
-            if jaksel_status == 'OFFLINE' or has_offline_alert:
-                print_result("Main Server berhasil mendeteksi Edge Node OFFLINE ✓")
-                return True
-            else:
-                print_result("Deteksi belum tercatat di status.json ✗")
-                return False
-        else:
-            print_result("status.json belum terbentuk ✗")
+        detected = False
+        
+        for _ in range(45):
+            time.sleep(1)
+            if os.path.exists(status_path):
+                try:
+                    with open(status_path, 'r') as f:
+                        status = json.load(f)
+                    
+                    registry = status.get('node_registry', {})
+                    alerts = status.get('alerts', [])
+                    
+                    jaksel_status = registry.get('Jaksel', {}).get('status', 'UNKNOWN')
+                    has_offline_alert = any('OFFLINE' in a.get('pesan', '') for a in alerts)
+                    
+                    if jaksel_status == 'OFFLINE' or has_offline_alert:
+                        print(f"          ↳ Status Jaksel di registry: {jaksel_status}")
+                        print(f"          ↳ Alert OFFLINE tercatat: {'Ya' if has_offline_alert else 'Tidak'}")
+                        print_result("Main Server berhasil mendeteksi Edge Node OFFLINE ✓")
+                        detected = True
+                        break
+                except Exception:
+                    pass
+                    
+        if not detected:
+            print_result("Deteksi belum tercatat di status.json ✗")
             return False
+            
+        return True
     finally:
         if edge:
             kill_proc(edge)

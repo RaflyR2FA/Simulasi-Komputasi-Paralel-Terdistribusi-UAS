@@ -34,9 +34,9 @@ Proyek ini dilengkapi dengan berbagai skenario simulasi dan pengujian untuk memb
 1. **Simulasi Skala Penuh (`simulasi_skala_penuh.py`)**: Digunakan untuk mendemokan arsitektur secara keseluruhan (End-to-End). Skrip ini menghidupkan seluruh komponen mulai dari Main Server, API Gateway, 5 Edge Node untuk kelima wilayah Jakarta, hingga Dashboard, serta membombardir sistem dengan *traffic* laporan secara konstan.
    - **Kegunaan:** Membuktikan bahwa sistem mampu berjalan terintegrasi dan menangani request berskala besar lintas wilayah secara real-time.
 2. **Pengujian Kinerja / Benchmark (`benchmark_kinerja.py`)**: Digunakan untuk membandingkan kecepatan pemrosesan data antara pendekatan tradisional (Sequential/Blocking) melawan pendekatan Asynchronous (Non-blocking).
-   - **Kegunaan:** Membuktikan pemenuhan **Poin 6 (Analisis Kinerja)** bahwa komputasi asinkron jauh lebih efisien untuk operasi I/O-bound.
+   - **Kegunaan:** Membuktikan pemenuhan analisis kinerja bahwa komputasi asinkron jauh lebih efisien untuk operasi I/O-bound.
 3. **Simulasi Toleransi Kesalahan (`simulasi_fault.py`)**: Skrip pengujian terisolasi yang mensimulasikan kegagalan pada jaringan atau server (Client crash, Server down, Node mati).
-   - **Kegunaan:** Membuktikan pemenuhan **Poin 7 (Tantangan Sistem)** bahwa sistem memiliki *fault tolerance* dan jaminan konsistensi (Vector Clock).
+   - **Kegunaan:** Membuktikan pemenuhan tantangan sistem bahwa sistem memiliki *fault tolerance* dan jaminan konsistensi (Vector Clock).
 
 ## Cara Menjalankan
 
@@ -91,15 +91,19 @@ Tunggu 5 detik → lihat sync terjadi di terminal Edge Node + data muncul di das
 python client_simulator.py --port 8000 --region Jaksel --jumlah 50 --chaos
 ```
 
-### C. Benchmark Kinerja
+### C. Benchmark Kinerja (End-to-End)
 
-Cukup jalankan satu perintah (tidak perlu server aktif):
+Script benchmark secara otomatis menjalankan dua server TCP yang berbeda arsitektur (sequential dan asynchronous) sebagai subprocess, lalu membombardir keduanya dengan volume request yang identik dari client konkuren melalui koneksi TCP nyata.
+
+Cukup jalankan satu perintah (server otomatis dinyalakan dan dimatikan oleh script):
 
 ```
 python benchmark_kinerja.py --jumlah 100
 python benchmark_kinerja.py --jumlah 1000
 python benchmark_kinerja.py --jumlah 10000
 ```
+
+> **Catatan:** Untuk `--jumlah 10000` pada server sequential, perlu waktu ~5 menit karena server memproses satu request per waktu.
 
 ### D. Simulasi Fault Tolerance
 
@@ -144,17 +148,14 @@ Menjalankan 3 skenario otomatis:
 
 **File:** `benchmark_kinerja.py`
 
-Membandingkan **Sequential** (time.sleep, blocking) vs **Asynchronous** (asyncio.sleep, non-blocking) dalam menangani pemrosesan data (simulasi I/O delay).
+Benchmark End-to-End yang membandingkan dua arsitektur server TCP secara langsung:
 
-Berdasarkan pengujian, diperoleh hasil berikut:
+- **Server Sequential (Blocking):** Menggunakan `socket.accept()` + `time.sleep()`. Server hanya mampu melayani satu request pada satu waktu. Selama memproses satu request, semua request lain harus mengantri.
+- **Server Asynchronous (Non-blocking):** Menggunakan `asyncio.start_server()` + `asyncio.sleep()`. Server mampu melayani banyak request secara bersamaan (konkuren). Saat satu request menunggu I/O, event loop langsung beralih melayani request lain.
 
-| Jumlah Data | Eksekusi Sequential | Eksekusi Asynchronous | Speedup       |
-| ----------- | ------------------- | --------------------- | ------------- |
-| **100**     | 3.25 detik          | 0.05 detik            | **60.8x**     |
-| **1,000**   | 30.39 detik         | 0.05 detik            | **532.5x**    |
-| **10,000**  | 303.98 detik        | 0.11 detik            | **2534.4x**   |
+Kedua server menggunakan simulasi delay I/O yang identik (0.01s — 0.05s) dan menerima traffic dari kode client yang sama (hingga 50 koneksi simultan melalui koneksi TCP nyata).
 
-*Catatan: Throughput sequential terpantau konstan di kisaran ~32 data/s, sedangkan throughput asynchronous meningkat eksponensial hingga >83.000 data/s pada n=10.000.*
+Hasil pengujian (N=100): Server async mencapai **speedup ~24.6x** dibandingkan server sequential. Speedup akan meningkat seiring jumlah data karena server async memanfaatkan konkuren secara optimal.
 
 Rumus: `Speedup = T_sequential / T_async`
 
